@@ -1,4 +1,5 @@
-import { Formula, Literal, Clause, VarianceAnalysisResult, HysteresisResult } from './types';
+
+import { Formula, Literal, Clause, VarianceAnalysisResult, HysteresisResult, StructuralResult, AutopsySnapshot } from './types';
 
 // Helper: Generates a random k-SAT formula
 export const generateRandom3SAT = (n: number, m: number): Formula => {
@@ -282,10 +283,17 @@ export const runEnergyVarianceAnalysis = (
 };
 
 // --- Phase 5: Hysteresis Probe ---
-export const runHysteresisExperiment = (n: number = 50, alpha: number = 5.8): HysteresisResult => {
+export const runHysteresisExperiment = (
+  n: number = 50, 
+  alpha: number = 5.8,
+  slowRateOverride?: number
+): HysteresisResult => {
   const m = Math.round(n * alpha);
   // Generate ONE hard instance to test both strategies
   const formula = generateRandom3SAT(n, m);
+  
+  const slowRate = slowRateOverride || 0.999;
+  const isDeepScan = slowRate > 0.999;
   
   const runSA = (coolingRate: number): { steps: number, success: boolean } => {
     let assignment = createAgentState(n);
@@ -321,16 +329,96 @@ export const runHysteresisExperiment = (n: number = 50, alpha: number = 5.8): Hy
   };
   
   const fast = runSA(0.95);
-  const slow = runSA(0.999);
+  const slow = runSA(slowRate);
   
   let diagnosis = "";
   if (!slow.success && !fast.success) {
-      diagnosis = "UNSAT STRUCTURALLY (Thermal Death)";
+      diagnosis = isDeepScan 
+        ? "UNSAT CONFIRMED (Thermal Death)" 
+        : "UNSAT STRUCTURALLY (Thermal Death)";
   } else if (slow.success && !fast.success) {
-      diagnosis = "BARRIERS CROSSED (Time is Key)";
+      diagnosis = isDeepScan 
+        ? "BARRIERS CROSSED (Deep Scan Success)" 
+        : "BARRIERS CROSSED (Time is Key)";
   } else {
       diagnosis = "GLASSY PHASE (Chaotic / Easy)";
   }
   
-  return { alpha, fast, slow, diagnosis };
+  return { 
+      alpha, 
+      fast, 
+      slow: { ...slow, rate: slowRate }, 
+      diagnosis,
+      isDeepScan 
+  };
+};
+
+// --- Phase 6: Structural Autopsy (Refutation Analysis) ---
+export const runStructuralAutopsy = (
+  n: number,
+  alpha: number
+): AutopsySnapshot => {
+  const m = Math.round(n * alpha);
+  const formula = generateRandom3SAT(n, m);
+  let assignment = createAgentState(n);
+  
+  const flipCounts = new Array(n).fill(0);
+  let minEnergy = Infinity;
+  let temp = 2.0;
+  const cooling = 0.99;
+  const maxSteps = 2000;
+
+  for (let s = 0; s < maxSteps; s++) {
+    const errors = getCriticErrors(formula, assignment);
+    const currentH = errors.length;
+    
+    if (currentH < minEnergy) minEnergy = currentH;
+    if (currentH === 0) {
+      minEnergy = 0;
+      break;
+    }
+
+    const { newAssignment, flippedVar, accepted } = runSimulatedAnnealingStep(formula, assignment, errors, temp);
+    
+    if (accepted && flippedVar !== -1) {
+      assignment = newAssignment;
+      // Track flips (1-based index to 0-based)
+      flipCounts[flippedVar - 1]++;
+    }
+    
+    temp *= cooling;
+  }
+
+  // Analyze Rigidity (Backbone)
+  // A variable is "Frozen" if it flips very rarely (e.g. < 0.5% of steps)
+  const frozenThreshold = maxSteps * 0.005;
+  const frozenCount = flipCounts.filter(c => c <= frozenThreshold).length;
+  const backboneRigidity = frozenCount / n;
+
+  let diagnosis: 'STRUCTURAL' | 'ALGORITHMIC' | 'SOLVABLE' = 'SOLVABLE';
+  let explanation = "";
+
+  if (minEnergy === 0) {
+    diagnosis = 'SOLVABLE';
+    explanation = "Instance is SAT. Difficulty was transient.";
+  } else {
+    // Refutation Logic
+    if (backboneRigidity > 0.6) {
+      diagnosis = 'STRUCTURAL';
+      explanation = `High Rigidity (${(backboneRigidity*100).toFixed(1)}%) with Ground State E=${minEnergy} > 0 indicates Structural Unsatisfiability (Shattered Phase).`;
+    } else {
+      diagnosis = 'ALGORITHMIC';
+      explanation = `Low Rigidity (${(backboneRigidity*100).toFixed(1)}%) but E=${minEnergy} > 0 indicates Algorithmic Trapping (Liquid/Glassy Phase).`;
+    }
+  }
+
+  return {
+    alpha,
+    groundStateEnergy: minEnergy,
+    backboneRigidity,
+    frozenVarsCount: frozenCount,
+    totalVars: n,
+    diagnosis,
+    explanation
+  };
 };

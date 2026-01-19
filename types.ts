@@ -1,3 +1,4 @@
+
 // 3-SAT Types
 export type Literal = number; // Positive for x_i, negative for NOT x_i
 export type Clause = Literal[];
@@ -52,8 +53,38 @@ export interface VarianceAnalysisResult {
 export interface HysteresisResult {
   alpha: number;
   fast: { steps: number; success: boolean };
-  slow: { steps: number; success: boolean };
+  slow: { steps: number; success: boolean; rate: number };
   diagnosis: string;
+  isDeepScan: boolean;
+}
+
+// New Type for Phase 5: Structural Autopsy & Backbone Scan
+export interface StructuralPoint {
+  alpha: number;
+  rigidity: number; // 0.0 - 1.0
+  energy: number;
+}
+
+export interface StructuralResult {
+  profile: StructuralPoint[]; // The curve data
+  shatteredPoint: number | null; // Alpha where rigidity crosses 0.5
+  ultraSlowCheck: {
+    alpha: number;
+    success: boolean;
+    steps: number;
+  } | null;
+  diagnosis: 'LIQUID' | 'GLASSY' | 'SHATTERED';
+  explanation: string;
+}
+
+export interface AutopsySnapshot {
+  alpha: number;
+  groundStateEnergy: number;
+  backboneRigidity: number;
+  frozenVarsCount: number;
+  totalVars: number;
+  diagnosis: 'STRUCTURAL' | 'ALGORITHMIC' | 'SOLVABLE';
+  explanation: string;
 }
 
 export enum AppTab {

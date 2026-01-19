@@ -22,7 +22,7 @@ const ResearchWorkspace: React.FC<ResearchWorkspaceProps> = ({
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
-  const [copyFeedback, setCopyFeedback] = useState<string | null>(null); // 'chat' | 'report' | null
+  const [copied, setCopied] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // Initial greeting
@@ -31,7 +31,7 @@ const ResearchWorkspace: React.FC<ResearchWorkspaceProps> = ({
       setMessages([{
         role: 'model',
         agentId: 'theorist',
-        content: "Greetings. I am ready to formalize our hypothesis regarding the Phase Transition. Shall we begin by analyzing the Critical Region behavior?",
+        content: "I am monitoring the pipeline. Once the Complexity Radar activates, we can discuss the implications of the frozen backbone.",
         timestamp: Date.now()
       }]);
     }
@@ -90,117 +90,64 @@ const ResearchWorkspace: React.FC<ResearchWorkspaceProps> = ({
     }
   };
 
-  // --- Copy Logic ---
-  const handleCopyChat = () => {
-    const chatText = messages.map(m => {
-      const speaker = m.role === 'user' ? 'User' : (m.agentId ? AGENTS[m.agentId].name : 'AI');
-      const time = new Date(m.timestamp).toLocaleTimeString();
-      return `[${time}] ${speaker}:\n${m.content}\n`;
-    }).join('\n----------------------------------------\n');
-
-    navigator.clipboard.writeText(chatText);
-    showFeedback('chat');
-  };
-
-  const handleCopyReport = () => {
-    // Note: Ideally we would get full probe results passed down as props, 
-    // but the Chat Log itself contains the analysis of those results, which is often more valuable.
-    // The Simulation Panel has its own dedicated "Copy Scientific Report" button for the raw data.
-    // This report focuses on the qualitative research findings.
-    
-    const peak = simulationData.length > 0 
-      ? simulationData.reduce((prev, current) => (prev.avgSteps > current.avgSteps) ? prev : current) 
-      : null;
-
-    const reportHeader = `
-P VS NP WORKBENCH - QUALITATIVE RESEARCH SESSION
-================================================
-Date: ${new Date().toLocaleString()}
-
-1. SIMULATION CONTEXT SUMMARY
------------------------------
-Total Data Points: ${simulationData.length}
-${peak ? `Observed Phase Transition Peak:
-  - Alpha (m/n): ${peak.alpha}
-  - Max Steps: ${peak.maxSteps}
-  - Satisfiability Ratio: ${peak.satisfiabilityRatio.toFixed(2)}` : 'No simulation data available.'}
-(Note: For full raw data (Variance/Hysteresis), use the Report button in the Simulation Panel.)
-
-2. RESEARCH CONVERSATION LOG
-----------------------------
-`;
-
-    const chatLog = messages.map(m => {
-      const speaker = m.role === 'user' ? 'User' : (m.agentId ? AGENTS[m.agentId].name : 'AI');
-      return `### ${speaker}\n${m.content}`;
+  const handleCopyProtocol = () => {
+    const protocolText = messages.map(m => {
+        const sender = m.role === 'user' ? 'USER' : (m.agentId ? AGENTS[m.agentId].name.toUpperCase() : 'AI');
+        return `[${sender}]:\n${m.content}\n-----------------------------------`;
     }).join('\n\n');
-
-    const fullReport = reportHeader + chatLog;
-    navigator.clipboard.writeText(fullReport);
-    showFeedback('report');
-  };
-
-  const showFeedback = (type: string) => {
-    setCopyFeedback(type);
-    setTimeout(() => setCopyFeedback(null), 2000);
+    
+    navigator.clipboard.writeText(protocolText);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   return (
-    <div className="flex flex-col h-full bg-zinc-900 border border-zinc-800 rounded-lg shadow-xl overflow-hidden">
-      {/* Header Toolbar */}
-      <div className="bg-zinc-950 p-2 border-b border-zinc-800 flex items-center justify-between gap-2">
-        {/* Agent Selector (Left) */}
-        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar flex-grow mask-fade-right">
-          {(Object.values(AGENTS) as any[]).map((agent) => {
-            const isActive = activeAgent === agent.id;
-            const Icon = agent.id === 'theorist' ? BrainCircuit : agent.id === 'empiricist' ? Terminal : ShieldAlert;
-            
-            return (
-              <button
-                key={agent.id}
-                onClick={() => setActiveAgent(agent.id)}
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold transition-all border whitespace-nowrap ${
-                  isActive 
-                    ? `bg-zinc-800 ${agent.color} border-zinc-600` 
-                    : 'bg-transparent text-zinc-500 border-transparent hover:bg-zinc-900 hover:text-zinc-400'
-                }`}
-              >
-                <Icon className="w-4 h-4" />
-                <div className="flex flex-col items-start">
-                  <span>{agent.name}</span>
-                </div>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Action Buttons (Right) */}
-        <div className="flex items-center gap-1 border-l border-zinc-800 pl-2 flex-shrink-0">
-          <button
-            onClick={handleCopyChat}
-            className="p-2 hover:bg-zinc-800 text-zinc-500 hover:text-zinc-300 rounded transition-colors relative group"
-            title="Copy Chat History"
-          >
-            {copyFeedback === 'chat' ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
-          </button>
+    <div className="flex flex-col h-full bg-transparent">
+      {/* Mini Toolbar for Agent Switching & Tools */}
+      <div className="p-3 border-b border-zinc-900 flex items-center justify-between gap-2 overflow-x-auto no-scrollbar">
+          <div className="flex gap-2">
+            {(Object.values(AGENTS) as any[]).map((agent) => {
+                const isActive = activeAgent === agent.id;
+                const Icon = agent.id === 'theorist' ? BrainCircuit : agent.id === 'empiricist' ? Terminal : ShieldAlert;
+                return (
+                <button
+                    key={agent.id}
+                    onClick={() => setActiveAgent(agent.id)}
+                    className={`p-2 rounded-lg transition-all border ${
+                    isActive 
+                        ? `bg-zinc-800 ${agent.color} border-zinc-700` 
+                        : 'bg-transparent text-zinc-600 border-transparent hover:text-zinc-400'
+                    }`}
+                    title={agent.name}
+                >
+                    <Icon className="w-4 h-4" />
+                </button>
+                );
+            })}
+          </div>
           
-          <button
-            onClick={handleCopyReport}
-            className="flex items-center gap-2 px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded text-xs font-medium border border-zinc-700 transition-colors"
-            title="Copy Qualitative Report"
-          >
-            {copyFeedback === 'report' ? <Check className="w-3 h-3 text-green-500" /> : <FileText className="w-3 h-3" />}
-            <span>{copyFeedback === 'report' ? 'Copied!' : 'Transcript'}</span>
-          </button>
-        </div>
+          <div className="flex items-center gap-2">
+            <button
+                onClick={handleCopyProtocol}
+                className={`p-2 rounded-lg border flex items-center gap-1 transition-all ${
+                    copied 
+                    ? 'bg-emerald-900/30 border-emerald-500 text-emerald-400' 
+                    : 'bg-zinc-900 border-zinc-800 text-zinc-500 hover:text-zinc-300'
+                }`}
+                title="Copy Full Protocol"
+            >
+                {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                <span className="text-[10px] font-bold uppercase hidden sm:inline">{copied ? 'COPIED' : 'COPY ALL'}</span>
+            </button>
+          </div>
       </div>
 
       {/* Chat Area */}
-      <div className="flex-grow overflow-y-auto p-4 bg-[#0c0c0e]" ref={scrollRef}>
+      <div className="flex-grow overflow-y-auto p-4 space-y-4 custom-scrollbar" ref={scrollRef}>
         {!apiKey && (
-          <div className="flex flex-col items-center justify-center h-full text-zinc-500 opacity-50">
-            <AlertCircle className="w-12 h-12 mb-2" />
-            <p>API Key required to consult agents</p>
+          <div className="flex flex-col items-center justify-center h-full text-zinc-600 opacity-50">
+            <ShieldAlert className="w-8 h-8 mb-2" />
+            <p className="text-xs text-center">Auth Required</p>
           </div>
         )}
         
@@ -210,35 +157,31 @@ ${peak ? `Observed Phase Transition Peak:
         
         {isTyping && (
           <div className="flex items-center gap-2 text-zinc-500 text-xs p-2 animate-pulse">
-            <span className={`w-2 h-2 rounded-full ${AGENTS[activeAgent].color.replace('text-', 'bg-')}`}></span>
-            {AGENTS[activeAgent].name} is thinking...
+            <span className={`w-1.5 h-1.5 rounded-full ${AGENTS[activeAgent].color.replace('text-', 'bg-')}`}></span>
+            Thinking...
           </div>
         )}
       </div>
 
       {/* Input Area */}
-      <div className="p-4 bg-zinc-950 border-t border-zinc-800">
+      <div className="p-3 bg-[#08080a] border-t border-zinc-900">
         <div className="relative">
           <input
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-            placeholder={`Ask ${AGENTS[activeAgent].name}...`}
+            placeholder={`Query ${AGENTS[activeAgent].name}...`}
             disabled={!apiKey || isTyping}
-            className="w-full bg-zinc-900 border border-zinc-700 text-zinc-200 text-sm rounded-xl pl-4 pr-12 py-3 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none font-mono placeholder:text-zinc-600 transition-all"
+            className="w-full bg-zinc-900/50 border border-zinc-800 text-zinc-200 text-xs rounded-lg pl-3 pr-10 py-3 focus:border-indigo-900 focus:bg-zinc-900 outline-none font-mono placeholder:text-zinc-700 transition-all"
           />
           <button
             onClick={() => handleSend()}
             disabled={!apiKey || isTyping}
-            className="absolute right-2 top-2 p-1.5 bg-indigo-600 hover:bg-indigo-500 disabled:bg-zinc-800 disabled:text-zinc-600 text-white rounded-lg transition-colors"
+            className="absolute right-2 top-2 p-1.5 text-zinc-500 hover:text-indigo-400 transition-colors"
           >
-            <Send className="w-4 h-4" />
+            <Send className="w-3 h-3" />
           </button>
-        </div>
-        <div className="text-[10px] text-zinc-600 mt-2 flex justify-between px-1">
-           <span>Context: {simulationData.length} simulation points loaded</span>
-           <span>Model: gemini-3-flash-preview</span>
         </div>
       </div>
     </div>
