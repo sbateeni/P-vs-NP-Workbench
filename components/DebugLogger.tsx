@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Terminal, X, Trash2, AlertTriangle, Bug } from 'lucide-react';
 
@@ -73,10 +74,6 @@ export const DebugLogger: React.FC<{ children: React.ReactNode }> = ({ children 
       window.removeEventListener('unhandledrejection', rejectionHandler);
     };
   }, []);
-
-  if (hasError && !isOpen) {
-    // Small floating indicator if closed but errors exist
-  }
 
   return (
     <>
