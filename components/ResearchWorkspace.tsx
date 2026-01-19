@@ -3,13 +3,13 @@ import { ChatMessage, SimulationDataPoint, AgentRole } from '../types';
 import { generateAgentResponse } from '../lib/geminiClient';
 import { AGENTS } from '../lib/agentRegistry';
 import MessageBubble from './chat/MessageBubble';
-import { Send, AlertCircle, BrainCircuit, Terminal, ShieldAlert, Copy, FileText, Check } from 'lucide-react';
+import { Send, BrainCircuit, Terminal, ShieldAlert, Copy, Check, Info, Loader2 } from 'lucide-react';
 
 interface ResearchWorkspaceProps {
   apiKey: string;
   simulationData: SimulationDataPoint[];
-  autoAnalysisPrompt?: string | null; // New prop for auto-trigger
-  onAutoAnalysisComplete?: () => void; // Callback to clear trigger
+  autoAnalysisPrompt?: string | null;
+  onAutoAnalysisComplete?: () => void;
 }
 
 const ResearchWorkspace: React.FC<ResearchWorkspaceProps> = ({ 
@@ -31,13 +31,13 @@ const ResearchWorkspace: React.FC<ResearchWorkspaceProps> = ({
       setMessages([{
         role: 'model',
         agentId: 'theorist',
-        content: "I am monitoring the pipeline. Once the Complexity Radar activates, we can discuss the implications of the frozen backbone.",
+        content: "Pipeline monitoring active. I am ready to process the phase transition data once the protocol begins.",
         timestamp: Date.now()
       }]);
     }
   }, []);
 
-  // Handle Auto Analysis Trigger
+  // Handle Auto Analysis Trigger from SimulationPanel
   useEffect(() => {
     if (autoAnalysisPrompt && apiKey && !isTyping) {
       handleSend(autoAnalysisPrompt);
@@ -45,7 +45,7 @@ const ResearchWorkspace: React.FC<ResearchWorkspaceProps> = ({
     }
   }, [autoAnalysisPrompt, apiKey]);
 
-  // Auto-scroll
+  // Auto-scroll logic
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -62,10 +62,12 @@ const ResearchWorkspace: React.FC<ResearchWorkspaceProps> = ({
     setIsTyping(true);
 
     try {
+      console.log(`[Workspace] Triggering ${activeAgent}...`);
+      
       const responseText = await generateAgentResponse(
         apiKey,
         activeAgent,
-        messages, // Pass full history
+        messages, 
         textToSend,
         simulationData
       );
@@ -79,32 +81,50 @@ const ResearchWorkspace: React.FC<ResearchWorkspaceProps> = ({
 
       setMessages(prev => [...prev, botMsg]);
     } catch (error: any) {
+      console.error("[Workspace] Error caught in UI:", error);
       setMessages(prev => [...prev, {
         role: 'model',
         agentId: activeAgent,
-        content: `Error: ${error.message || 'Connection failed.'}`,
+        content: `SYSTEM_ALERT: ${error.message || 'Transmission interrupted.'}`,
         timestamp: Date.now()
       }]);
     } finally {
+      // Ensure we always stop the loading indicator, even if it crashed
       setIsTyping(false);
     }
   };
 
   const handleCopyProtocol = () => {
-    const protocolText = messages.map(m => {
-        const sender = m.role === 'user' ? 'USER' : (m.agentId ? AGENTS[m.agentId].name.toUpperCase() : 'AI');
-        return `[${sender}]:\n${m.content}\n-----------------------------------`;
-    }).join('\n\n');
+    // Generate full data dump + chat history
+    let report = `[P vs NP WORKBENCH - FULL RESEARCH PROTOCOL]\n`;
+    report += `Timestamp: ${new Date().toLocaleString()}\n`;
+    report += `-------------------------------------------\n\n`;
     
-    navigator.clipboard.writeText(protocolText);
+    report += `[SIMULATION DATA SUMMARY]\n`;
+    if (simulationData.length > 0) {
+        simulationData.forEach(p => {
+            report += `α=${p.alpha.toFixed(2)} | AvgSteps=${p.avgSteps} | SatRatio=${p.satisfiabilityRatio.toFixed(2)}\n`;
+        });
+    } else {
+        report += `No simulation data recorded.\n`;
+    }
+    report += `\n-------------------------------------------\n\n`;
+
+    report += `[AGENT CONVERSATION LOG]\n`;
+    messages.forEach(m => {
+        const sender = m.role === 'user' ? 'COMMANDER' : (m.agentId ? AGENTS[m.agentId].name.toUpperCase() : 'ORACLE');
+        report += `[${sender}]:\n${m.content}\n\n`;
+    });
+    
+    navigator.clipboard.writeText(report);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
   return (
     <div className="flex flex-col h-full bg-transparent">
-      {/* Mini Toolbar for Agent Switching & Tools */}
-      <div className="p-3 border-b border-zinc-900 flex items-center justify-between gap-2 overflow-x-auto no-scrollbar">
+      {/* Agent Selector Toolbar */}
+      <div className="p-3 border-b border-zinc-900 flex items-center justify-between gap-2 shrink-0 bg-[#08080a]/50 backdrop-blur-md">
           <div className="flex gap-2">
             {(Object.values(AGENTS) as any[]).map((agent) => {
                 const isActive = activeAgent === agent.id;
@@ -113,9 +133,9 @@ const ResearchWorkspace: React.FC<ResearchWorkspaceProps> = ({
                 <button
                     key={agent.id}
                     onClick={() => setActiveAgent(agent.id)}
-                    className={`p-2 rounded-lg transition-all border ${
+                    className={`p-2.5 rounded-lg transition-all border ${
                     isActive 
-                        ? `bg-zinc-800 ${agent.color} border-zinc-700` 
+                        ? `bg-zinc-800/80 ${agent.color} border-zinc-700 shadow-sm` 
                         : 'bg-transparent text-zinc-600 border-transparent hover:text-zinc-400'
                     }`}
                     title={agent.name}
@@ -126,28 +146,25 @@ const ResearchWorkspace: React.FC<ResearchWorkspaceProps> = ({
             })}
           </div>
           
-          <div className="flex items-center gap-2">
-            <button
-                onClick={handleCopyProtocol}
-                className={`p-2 rounded-lg border flex items-center gap-1 transition-all ${
-                    copied 
-                    ? 'bg-emerald-900/30 border-emerald-500 text-emerald-400' 
-                    : 'bg-zinc-900 border-zinc-800 text-zinc-500 hover:text-zinc-300'
-                }`}
-                title="Copy Full Protocol"
-            >
-                {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                <span className="text-[10px] font-bold uppercase hidden sm:inline">{copied ? 'COPIED' : 'COPY ALL'}</span>
-            </button>
-          </div>
+          <button
+              onClick={handleCopyProtocol}
+              className={`px-3 py-2 rounded-lg border flex items-center gap-2 transition-all active:scale-95 ${
+                  copied 
+                  ? 'bg-emerald-900/20 border-emerald-500 text-emerald-400' 
+                  : 'bg-zinc-900 border-zinc-800 text-zinc-500'
+              }`}
+          >
+              {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+              <span className="text-[10px] font-black uppercase tracking-tighter">Copy Protocol</span>
+          </button>
       </div>
 
-      {/* Chat Area */}
-      <div className="flex-grow overflow-y-auto p-4 space-y-4 custom-scrollbar" ref={scrollRef}>
+      {/* Messages Feed */}
+      <div className="flex-grow overflow-y-auto p-4 space-y-5 custom-scrollbar bg-black/10" ref={scrollRef}>
         {!apiKey && (
-          <div className="flex flex-col items-center justify-center h-full text-zinc-600 opacity-50">
-            <ShieldAlert className="w-8 h-8 mb-2" />
-            <p className="text-xs text-center">Auth Required</p>
+          <div className="flex flex-col items-center justify-center h-full text-zinc-700 animate-pulse">
+             <Info className="w-10 h-10 mb-2 opacity-20" />
+             <p className="text-[10px] uppercase font-bold tracking-widest">Authentication Required</p>
           </div>
         )}
         
@@ -156,31 +173,33 @@ const ResearchWorkspace: React.FC<ResearchWorkspaceProps> = ({
         ))}
         
         {isTyping && (
-          <div className="flex items-center gap-2 text-zinc-500 text-xs p-2 animate-pulse">
-            <span className={`w-1.5 h-1.5 rounded-full ${AGENTS[activeAgent].color.replace('text-', 'bg-')}`}></span>
-            Thinking...
+          <div className="flex items-center gap-3 text-zinc-500 text-[10px] font-black uppercase tracking-widest pl-2 animate-pulse">
+            <Loader2 className="w-4 h-4 animate-spin text-indigo-500" />
+            <span>Processing Query...</span>
           </div>
         )}
       </div>
 
-      {/* Input Area */}
-      <div className="p-3 bg-[#08080a] border-t border-zinc-900">
-        <div className="relative">
+      {/* Persistent Input Bar */}
+      <div className="p-4 bg-zinc-950 border-t border-zinc-900 shrink-0">
+        <div className="relative group">
           <input
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-            placeholder={`Query ${AGENTS[activeAgent].name}...`}
+            placeholder={`Instruct ${AGENTS[activeAgent].name}...`}
             disabled={!apiKey || isTyping}
-            className="w-full bg-zinc-900/50 border border-zinc-800 text-zinc-200 text-xs rounded-lg pl-3 pr-10 py-3 focus:border-indigo-900 focus:bg-zinc-900 outline-none font-mono placeholder:text-zinc-700 transition-all"
+            className="w-full bg-zinc-900/60 border border-zinc-800 text-zinc-200 text-xs rounded-xl pl-4 pr-12 py-4 focus:border-indigo-500 focus:bg-zinc-900 outline-none font-mono placeholder:text-zinc-700 transition-all shadow-inner"
           />
           <button
             onClick={() => handleSend()}
-            disabled={!apiKey || isTyping}
-            className="absolute right-2 top-2 p-1.5 text-zinc-500 hover:text-indigo-400 transition-colors"
+            disabled={!apiKey || isTyping || !input.trim()}
+            className={`absolute right-3 top-3.5 p-1.5 rounded-lg transition-all ${
+              !input.trim() ? 'text-zinc-800' : 'text-indigo-400 bg-indigo-400/10'
+            }`}
           >
-            <Send className="w-3 h-3" />
+            <Send className="w-4 h-4" />
           </button>
         </div>
       </div>

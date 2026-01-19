@@ -1,6 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
+import { DebugLogger } from './components/DebugLogger';
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
@@ -10,6 +11,8 @@ if (!rootElement) {
 const root = ReactDOM.createRoot(rootElement);
 root.render(
   <React.StrictMode>
-    <App />
+    <DebugLogger>
+      <App />
+    </DebugLogger>
   </React.StrictMode>
 );
