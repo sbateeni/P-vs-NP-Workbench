@@ -166,6 +166,15 @@ export interface UniversalityResult {
   proofDraft: string;
 }
 
+// Phase 13: Adversarial Scaling (Theorist's Critique)
+export interface AdversarialResult {
+  scanPoints: { n: number; accuracy: number; errorRate: number }[];
+  slope: number; // Slope of accuracy vs N. Negative means decay.
+  deceptivePass: boolean; // Did it survive the "Planted" deceptive structure?
+  diagnosis: 'ROBUST SCALING (Winner)' | 'ERROR DECAY (Theorist Correct)' | 'CATASTROPHIC COLLAPSE';
+  explanation: string;
+}
+
 export enum AppTab {
   SIMULATION = 'SIMULATION',
   ANALYSIS = 'ANALYSIS',

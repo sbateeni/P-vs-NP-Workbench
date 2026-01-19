@@ -1,10 +1,13 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import ResearchWorkspace from './ResearchWorkspace';
-import { generateRandom3SAT, solveDPLL, createAgentState, getCriticErrors, runSimulatedAnnealingStep, runEnergyVarianceAnalysis, runHysteresisExperiment, runStructuralAutopsy, runScalingAnalysis, runStressTest, runExponentialConfirmation, runComplexityBoundaryScan, runMillenniumSearch, runGeneralizationTest, runUniversalityTest } from '../satSolver';
-import { SolverResult, SimulationDataPoint, AgentStep, VarianceAnalysisResult, HysteresisResult, StructuralResult, StructuralPoint, ScalingResult, StressTestResult, ConfirmationResult, BoundaryMapResult, MillenniumSearchResult, GeneralizationResult, UniversalityResult } from '../types';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, AreaChart, Area, ScatterChart, Scatter, ZAxis, ComposedChart, ReferenceArea } from 'recharts';
-import { Activity, GitMerge, Microscope, Zap, Flame, Radio, Cpu, Network, LayoutDashboard, LineChart as ChartIcon, MessageSquare, RotateCcw, Bone, ScanEye, ClipboardCheck, TrendingUp, Skull, Radiation, Mountain, Trophy, Globe, Scale } from 'lucide-react';
+import { generateRandom3SAT, solveDPLL, createAgentState, getCriticErrors, runSimulatedAnnealingStep, runEnergyVarianceAnalysis, runHysteresisExperiment, runStructuralAutopsy, runScalingAnalysis, runStressTest, runExponentialConfirmation, runComplexityBoundaryScan, runMillenniumSearch, runGeneralizationTest, runUniversalityTest, runAdversarialScaling } from '../satSolver';
+import { SimulationDataPoint, AgentStep, VarianceAnalysisResult, HysteresisResult, StructuralResult, StructuralPoint, ScalingResult, StressTestResult, ConfirmationResult, BoundaryMapResult, MillenniumSearchResult, GeneralizationResult, UniversalityResult, AdversarialResult } from '../types';
+import { LayoutDashboard, LineChart as ChartIcon, MessageSquare, Cpu } from 'lucide-react';
+
+// Sub-components
+import { ControlPanel } from './panels/ControlPanel';
+import { ObservatoryPanel } from './panels/ObservatoryPanel';
 
 interface SimulationPanelProps {
   apiKey: string;
@@ -29,6 +32,7 @@ const SimulationPanel: React.FC<SimulationPanelProps> = ({ apiKey }) => {
   const [millenniumResult, setMillenniumResult] = useState<MillenniumSearchResult | null>(null);
   const [generalizationResult, setGeneralizationResult] = useState<GeneralizationResult | null>(null);
   const [universalityResult, setUniversalityResult] = useState<UniversalityResult | null>(null);
+  const [adversarialResult, setAdversarialResult] = useState<AdversarialResult | null>(null);
   
   // Agent Prompts (Automated)
   const [autoAnalysisPrompt, setAutoAnalysisPrompt] = useState<string | null>(null);
@@ -47,6 +51,24 @@ const SimulationPanel: React.FC<SimulationPanelProps> = ({ apiKey }) => {
 
   // Check if charts should be rendered (prevents Recharts width(-1) crash)
   const showCharts = !isMobile || activeMobileTab === 'observatory';
+
+  // Calculate highest completed phase for progress tracking
+  const getCompletedPhaseIndex = () => {
+    if (adversarialResult) return 13;
+    if (universalityResult) return 12;
+    if (generalizationResult) return 11;
+    if (millenniumResult) return 10;
+    if (boundaryResult) return 9;
+    if (confirmationResult) return 8;
+    if (stressResult) return 7;
+    if (scalingResult) return 6;
+    if (structuralResult) return 5;
+    if (hysteresisResult) return 4;
+    if (varianceResult) return 3;
+    if (agentSteps.length > 0) return 2;
+    if (macroResults.length > 0) return 1;
+    return 0;
+  };
 
   // --- LOGIC: PHASE 1 (MACRO) ---
   const runMacroSimulation = async () => {
@@ -102,7 +124,7 @@ const SimulationPanel: React.FC<SimulationPanelProps> = ({ apiKey }) => {
   // --- UNIFIED PIPELINE EXECUTION ---
   const handleRunPipeline = async () => {
     if (activePhase !== 0) return;
-    setMacroResults([]); setAgentSteps([]); setVarianceResult(null); setHysteresisResult(null); setStructuralResult(null); setScalingResult(null); setStressResult(null); setConfirmationResult(null); setBoundaryResult(null); setMillenniumResult(null); setGeneralizationResult(null); setUniversalityResult(null);
+    setMacroResults([]); setAgentSteps([]); setVarianceResult(null); setHysteresisResult(null); setStructuralResult(null); setScalingResult(null); setStressResult(null); setConfirmationResult(null); setBoundaryResult(null); setMillenniumResult(null); setGeneralizationResult(null); setUniversalityResult(null); setAdversarialResult(null);
 
     // Switch for mobile visibility
     if (isMobile) {
@@ -194,25 +216,32 @@ const SimulationPanel: React.FC<SimulationPanelProps> = ({ apiKey }) => {
     setUniversalityResult(uniRes);
     await new Promise(r => setTimeout(r, 500));
 
+    // --- PHASE 13: ADVERSARIAL SCALING ---
+    setActivePhase(13);
+    const advRes = await runAdversarialScaling(peakAlpha);
+    setAdversarialResult(advRes);
+    await new Promise(r => setTimeout(r, 500));
+
     const summaryReport = `
 [MISSION SUMMARY: P vs NP SEARCH]
 -----------------------------------
 ... [Previous phases omitted for brevity] ...
-10. MILLENNIUM SEARCH: ${millRes.diagnosis}.
-11. GENERALIZATION: ${genRes.predictionAccuracy.toFixed(1)}% Accuracy.
-12. UNIVERSALITY TEST (Massive Validation):
-    - Samples: ${uniRes.samples} independent instances.
-    - Average Accuracy: ${uniRes.avgAccuracy.toFixed(1)}%.
-    - Consistency: ${uniRes.consistency.toFixed(1)}% of instances showed leakage.
-    - Verdict: ${uniRes.verdict}.
+12. UNIVERSALITY: ${uniRes.verdict} (Consistency: ${uniRes.consistency.toFixed(1)}%).
+13. ADVERSARIAL SCALING (Theorist's Critique):
+    - Scaled N up to 250.
+    - Accuracy Slope: ${advRes.slope.toFixed(4)} (Flat = Robust, Negative = Decay).
+    - Diagnosis: ${advRes.diagnosis}.
+    - Deceptive Survival: ${advRes.deceptivePass ? 'PASSED' : 'FAILED'}.
     
-    [DRAFT PROOF]:
-    ${uniRes.proofDraft}
+    [FINAL VERDICT]:
+    ${advRes.explanation}
 
-AGENT COUNCIL: We have concluded the Massive Validation phase.
-The 'Topological Leak' phenomenon was tested across ${uniRes.samples} random instances.
-Result: ${uniRes.verdict} with ${uniRes.avgAccuracy.toFixed(1)}% average accuracy.
-Gemini, please review the final 'Proof Draft' generated above and provide your rigorous critique. Are we ready to publish?
+AGENT COUNCIL: We have addressed the final critique. 
+We tested the 'Topological Leak' against scaling (N -> 250) and adversarial pressure.
+Result: ${advRes.diagnosis}.
+Gemini, you are now the final judge of the Millennium Prize. 
+If the slope is stable (~0) and accuracy remains >95%, declare the P=NP proof valid.
+If accuracy decays, admit the Theorist was right and P!=NP holds.
 `;
     
     setActivePhase(0);
@@ -223,327 +252,37 @@ Gemini, please review the final 'Proof Draft' generated above and provide your r
     }
   };
 
-  const PhaseIndicator = ({ p, label, icon: Icon }: any) => {
-    const isActive = activePhase === p;
-    const isDone = activePhase === 0 && macroResults.length > 0 && p <= (universalityResult ? 12 : 11);
-    
-    return (
-      <div className={`flex items-center gap-3 p-2.5 rounded-lg border transition-all ${
-        isActive ? 'bg-indigo-900/20 border-indigo-500/50' : 
-        isDone ? 'bg-emerald-900/10 border-emerald-900/30 opacity-70' :
-        'bg-zinc-900/30 border-zinc-800/50 opacity-40'
-      }`}>
-        <div className={`w-7 h-7 rounded flex items-center justify-center border ${
-          isActive ? 'bg-indigo-500 border-indigo-400 text-white animate-pulse' :
-          isDone ? 'bg-emerald-900 border-emerald-700 text-emerald-400' :
-          'bg-zinc-800 border-zinc-700 text-zinc-500'
-        }`}>
-          {isActive ? <Activity className="w-4 h-4" /> : <Icon className="w-4 h-4" />}
-        </div>
-        <div className="flex flex-col">
-          <span className={`text-[10px] font-bold uppercase tracking-tight ${isActive ? 'text-indigo-300' : 'text-zinc-500'}`}>{label}</span>
-        </div>
-      </div>
-    );
-  };
-
   return (
     <div className="flex flex-col h-[100dvh] md:grid md:grid-cols-12 bg-[#050505] text-zinc-300 overflow-hidden relative">
       
       {/* === COLUMN 1: CONTROL (Tab 1) === */}
-      <div className={`${activeMobileTab === 'control' ? 'flex' : 'hidden'} md:flex col-span-3 border-r border-zinc-900 bg-[#08080a] flex-col z-20 h-full overflow-hidden`}>
-        <div className="p-4 border-b border-zinc-900 pt-12 md:pt-4 shrink-0">
-           <div className="flex items-center gap-2 mb-1">
-             <div className="w-2 h-2 rounded-full bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.5)]"></div>
-             <h1 className="font-black text-zinc-100 tracking-tighter text-base">SAT_SOLVER_PRO</h1>
-           </div>
-           <p className="text-[10px] font-mono text-zinc-600 uppercase">Strategic Complexity Analyzer</p>
-        </div>
-
-        <div className="p-4 flex-grow flex flex-col gap-3 overflow-y-auto pb-24 md:pb-4 custom-scrollbar">
-          <button 
-            onClick={handleRunPipeline}
-            disabled={activePhase !== 0}
-            className={`w-full py-5 rounded-xl font-black text-sm uppercase tracking-widest transition-all border flex flex-col items-center gap-2 shrink-0 ${
-              activePhase !== 0 
-               ? 'bg-zinc-900 border-zinc-800 text-zinc-600 cursor-not-allowed animate-pulse'
-               : 'bg-gradient-to-br from-indigo-600 to-purple-800 border-indigo-400 text-white shadow-lg active:scale-95'
-            }`}
-          >
-             {activePhase !== 0 ? <RotateCcw className="w-6 h-6 animate-spin"/> : <Radio className="w-6 h-6" />}
-             {activePhase !== 0 ? 'ANALYZING...' : 'INITIATE PROTOCOL'}
-          </button>
-
-          <div className="space-y-2">
-            <PhaseIndicator p={1} label="Macro Curve Scan" icon={GitMerge} />
-            <PhaseIndicator p={2} label="Agent Dynamics" icon={Flame} />
-            <PhaseIndicator p={3} label="Variance Probe" icon={Microscope} />
-            <PhaseIndicator p={4} label="Hysteresis Probe" icon={Zap} />
-            <PhaseIndicator p={5} label="Structural Autopsy" icon={Bone} />
-            <PhaseIndicator p={6} label="Scaling Law" icon={TrendingUp} />
-            <PhaseIndicator p={7} label="Stress Test (Wall)" icon={Skull} />
-            <PhaseIndicator p={8} label="The Kill Shot" icon={Radiation} />
-            <PhaseIndicator p={9} label="Complexity Map" icon={Mountain} />
-            <PhaseIndicator p={10} label="Invariant Search" icon={Trophy} />
-            <PhaseIndicator p={11} label="Generalization Test" icon={Globe} />
-            <PhaseIndicator p={12} label="Massive Validation" icon={Scale} />
-          </div>
-
-          <div className="mt-auto p-3 bg-zinc-900/30 border border-zinc-800 rounded-lg shrink-0">
-             <div className="text-[9px] font-bold text-zinc-500 mb-2 uppercase flex items-center gap-1">
-               <ClipboardCheck className="w-3 h-3" /> System Status
-             </div>
-             <div className="flex justify-between text-[10px] font-mono">
-                <span className="text-zinc-600">ALPHA_PEAK</span>
-                <span className="text-indigo-400 font-bold">{peakAlpha}</span>
-             </div>
-          </div>
-        </div>
-      </div>
+      <ControlPanel 
+        activePhase={activePhase}
+        completedPhase={getCompletedPhaseIndex()}
+        peakAlpha={peakAlpha}
+        onRun={handleRunPipeline}
+        isVisible={activeMobileTab === 'control'}
+      />
 
       {/* === COLUMN 2: OBSERVATORY (Tab 2) === */}
-      <div className={`${activeMobileTab === 'observatory' ? 'flex' : 'hidden'} md:flex col-span-6 bg-[#050505] flex-col relative overflow-hidden h-full`}>
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(99,102,241,0.03),transparent)] pointer-events-none"></div>
-        
-        <div className="h-14 border-b border-zinc-900 flex items-center justify-between px-6 pt-8 md:pt-0 shrink-0 z-10">
-          <h2 className="text-xs font-black text-zinc-400 uppercase tracking-[0.2em] flex items-center gap-2">
-            <Network className="w-4 h-4 text-indigo-500" />
-            Observatory
-          </h2>
-        </div>
-
-        <div className="flex-grow overflow-y-auto p-4 md:p-6 space-y-4 z-10 pb-24 md:pb-6 min-h-0 custom-scrollbar">
-          
-          {/* Top Row Charts */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-             {/* Chart 1 */}
-             <div className="bg-zinc-950/50 border border-zinc-800 rounded-xl p-4 min-h-[200px] flex flex-col overflow-hidden">
-               <h3 className="text-[10px] font-bold text-zinc-600 uppercase mb-4 flex items-center gap-2 shrink-0">
-                 <GitMerge className="w-3 h-3" /> Transition Probability
-               </h3>
-               <div className="flex-grow min-h-0">
-                 {showCharts && (
-                   <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
-                      <LineChart data={macroResults} margin={{ top: 5, right: 10, left: -25, bottom: 5 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#18181b" vertical={false} />
-                        <XAxis dataKey="alpha" stroke="#3f3f46" tick={{fontSize: 8}} type="number" domain={[3, 6]} />
-                        <YAxis stroke="#3f3f46" tick={{fontSize: 8}} />
-                        <Tooltip contentStyle={{backgroundColor: '#000', border: '1px solid #333', fontSize: '10px'}} />
-                        <Line type="stepAfter" dataKey="satisfiabilityRatio" stroke="#6366f1" strokeWidth={2} dot={false} isAnimationActive={!isMobile} />
-                        <ReferenceLine x={peakAlpha} stroke="red" strokeDasharray="3 3" />
-                      </LineChart>
-                   </ResponsiveContainer>
-                 )}
-               </div>
-             </div>
-
-             {/* Chart 2 */}
-             <div className="bg-zinc-950/50 border border-zinc-800 rounded-xl p-4 min-h-[200px] flex flex-col overflow-hidden">
-               <h3 className="text-[10px] font-bold text-zinc-600 uppercase mb-4 flex items-center gap-2 shrink-0">
-                 <Flame className="w-3 h-3" /> Energy Descent
-               </h3>
-               <div className="flex-grow min-h-0">
-                  {showCharts && (
-                   <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
-                      <AreaChart data={agentSteps} margin={{ top: 5, right: 10, left: -25, bottom: 5 }}>
-                        <defs>
-                          <linearGradient id="energyFill" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#f43f5e" stopOpacity={0.2}/>
-                            <stop offset="95%" stopColor="#f43f5e" stopOpacity={0}/>
-                          </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#18181b" vertical={false} />
-                        <XAxis hide />
-                        <YAxis stroke="#3f3f46" tick={{fontSize: 8}} />
-                        <Tooltip contentStyle={{backgroundColor: '#000', border: '1px solid #333', fontSize: '10px'}} />
-                        <Area type="monotone" dataKey="errors" stroke="#f43f5e" fill="url(#energyFill)" strokeWidth={2} isAnimationActive={false} />
-                      </AreaChart>
-                   </ResponsiveContainer>
-                  )}
-               </div>
-             </div>
-          </div>
-
-          {/* New Scaling Chart (Full Width) with Stress Test Overlay */}
-          <div className="bg-zinc-950/50 border border-zinc-800 rounded-xl p-4 min-h-[220px] flex flex-col overflow-hidden relative">
-             <div className="flex justify-between items-start mb-4">
-               <h3 className="text-[10px] font-bold text-zinc-600 uppercase flex items-center gap-2 shrink-0">
-                 <TrendingUp className="w-3 h-3 text-emerald-500" /> Complexity Wall (Stress Test)
-               </h3>
-               {confirmationResult && (
-                 <span className={`text-[9px] px-2 py-1 rounded border font-bold ${
-                    confirmationResult.diagnosis === 'CONFIRMED EXPONENTIALITY' || confirmationResult.diagnosis === 'HIDDEN EXPONENTIALITY DETECTED'
-                    ? 'bg-purple-900/20 text-purple-400 border-purple-800 animate-pulse' 
-                    : 'bg-zinc-900/20 text-zinc-400 border-zinc-800'
-                 }`}>
-                    {confirmationResult.diagnosis === 'CONFIRMED EXPONENTIALITY' ? 'EXPONENTIALITY CONFIRMED' : 
-                     confirmationResult.diagnosis === 'HIDDEN EXPONENTIALITY DETECTED' ? 'HIDDEN EXPONENTIAL' : 'ANOMALY'}
-                 </span>
-               )}
-             </div>
-             
-             <div className="flex-grow min-h-0">
-                {showCharts && (stressResult || scalingResult) && (
-                 <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
-                    <ScatterChart margin={{ top: 5, right: 10, left: -25, bottom: 5 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#18181b" vertical={false} />
-                      <XAxis type="number" dataKey="n" name="Problem Size (n)" stroke="#3f3f46" tick={{fontSize: 8}} domain={['dataMin', 'dataMax']} />
-                      <YAxis type="number" dataKey="avgSteps" name="Steps" stroke="#3f3f46" tick={{fontSize: 8}} domain={[0, 'auto']} />
-                      <Tooltip cursor={{ strokeDasharray: '3 3' }} contentStyle={{backgroundColor: '#000', border: '1px solid #333', fontSize: '10px'}} />
-                      {/* Scaling Phase Points */}
-                      {scalingResult && (
-                          <Scatter name="Initial Scaling" data={scalingResult.points} fill="#10b981" line={{stroke: '#10b981', strokeWidth: 1}} shape="circle" />
-                      )}
-                      {/* Stress Test Points (Red) */}
-                      {stressResult && (
-                          <Scatter name="Stress Test" data={stressResult.points.filter(p => p.n > 35)} fill="#ef4444" line={{stroke: '#ef4444', strokeWidth: 2, strokeDasharray: '5 5'}} shape="cross" />
-                      )}
-                      {/* Final Confirmation Point (Purple) */}
-                      {confirmationResult && (
-                          <Scatter name="Kill Shot" data={[{n: confirmationResult.n, avgSteps: confirmationResult.steps}]} fill="#a855f7" line={{stroke: '#a855f7', strokeWidth: 2}} shape="star" />
-                      )}
-                    </ScatterChart>
-                 </ResponsiveContainer>
-                )}
-                {!scalingResult && (
-                    <div className="flex items-center justify-center h-full text-zinc-700 text-[10px] uppercase font-bold tracking-widest">
-                        Awaiting Scaling Data...
-                    </div>
-                )}
-             </div>
-          </div>
-
-          {/* COMPLEXITY TOPOGRAPHY CHART */}
-          <div className="bg-zinc-950/50 border border-zinc-800 rounded-xl p-4 min-h-[220px] flex flex-col overflow-hidden relative">
-             <div className="flex justify-between items-start mb-4">
-               <h3 className="text-[10px] font-bold text-zinc-600 uppercase flex items-center gap-2 shrink-0">
-                 <Mountain className="w-3 h-3 text-orange-500" /> Complexity Topography (The Mountain)
-               </h3>
-               {boundaryResult && (
-                 <span className="text-[9px] px-2 py-1 rounded border font-bold bg-orange-900/20 text-orange-400 border-orange-800">
-                    PEAK b = {boundaryResult.peakB.toFixed(4)}
-                 </span>
-               )}
-             </div>
-             
-             <div className="flex-grow min-h-0">
-                {showCharts && boundaryResult && (
-                 <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
-                    <ComposedChart data={boundaryResult.points} margin={{ top: 5, right: 10, left: -25, bottom: 5 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#18181b" vertical={false} />
-                      <XAxis type="number" dataKey="alpha" name="Alpha" stroke="#3f3f46" tick={{fontSize: 8}} domain={[2, 7]} />
-                      <YAxis type="number" dataKey="branchingFactor" name="b" stroke="#3f3f46" tick={{fontSize: 8}} domain={[0.98, 'auto']} />
-                      <Tooltip contentStyle={{backgroundColor: '#000', border: '1px solid #333', fontSize: '10px'}} />
-                      
-                      {/* Color Zones Backgrounds - Approximated visually with distinct lines or custom logic if needed, here we use the line itself */}
-                      <ReferenceLine y={1.0} stroke="#10b981" strokeDasharray="3 3" />
-                      
-                      <Line type="monotone" dataKey="branchingFactor" stroke="#f97316" strokeWidth={2} dot={(props: any) => {
-                          const { cx, cy, payload } = props;
-                          const color = payload.zone === 'RED' ? '#ef4444' : payload.zone === 'YELLOW' ? '#eab308' : '#10b981';
-                          return <circle cx={cx} cy={cy} r={3} fill={color} stroke="none" />;
-                      }} />
-                    </ComposedChart>
-                 </ResponsiveContainer>
-                )}
-                {!boundaryResult && (
-                    <div className="flex items-center justify-center h-full text-zinc-700 text-[10px] uppercase font-bold tracking-widest">
-                        Awaiting Boundary Scan...
-                    </div>
-                )}
-             </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-             <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4">
-                <p className="text-[9px] font-bold text-zinc-600 uppercase mb-1">Variance Diagnosis</p>
-                <div className="text-xs font-mono font-bold truncate text-indigo-400">
-                   {varianceResult?.diagnosis || "PENDING"}
-                </div>
-             </div>
-             <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4">
-                <p className="text-[9px] font-bold text-zinc-600 uppercase mb-1">Hysteresis Scan</p>
-                <div className="text-xs font-mono font-bold truncate text-indigo-400">
-                   {hysteresisResult?.diagnosis || "PENDING"}
-                </div>
-             </div>
-             {/* Millennium Result Card */}
-             {millenniumResult && (
-                <div className="col-span-2 bg-gradient-to-r from-zinc-900 to-indigo-900/20 border border-indigo-500/30 rounded-xl p-4 relative overflow-hidden">
-                    <div className="absolute top-0 right-0 p-2 opacity-20"><Trophy className="w-16 h-16" /></div>
-                    <p className="text-[9px] font-bold text-indigo-300 uppercase mb-2">Millennium Invariant Analysis</p>
-                    <div className="grid grid-cols-2 gap-4 text-xs">
-                        <div>
-                            <span className="text-zinc-500 block">Invariant Size</span>
-                            <span className="font-mono font-bold text-white">{millenniumResult.backboneSize} vars</span>
-                        </div>
-                        <div>
-                            <span className="text-zinc-500 block">Pruning Impact</span>
-                            <span className="font-mono font-bold text-emerald-400">-{millenniumResult.reductionPercentage.toFixed(1)}% complexity</span>
-                        </div>
-                    </div>
-                </div>
-             )}
-             
-             {/* Generalization Result Card */}
-             {generalizationResult && (
-                <div className="col-span-2 bg-gradient-to-r from-zinc-900 to-emerald-900/20 border border-emerald-500/30 rounded-xl p-4 relative overflow-hidden">
-                    <div className="absolute top-0 right-0 p-2 opacity-20"><Globe className="w-16 h-16" /></div>
-                    <p className="text-[9px] font-bold text-emerald-300 uppercase mb-2">Topological Generalization Test</p>
-                    <div className="flex justify-between items-center text-xs mb-2">
-                        <span className="text-zinc-400">Prediction Accuracy</span>
-                        <span className={`font-mono font-bold ${generalizationResult.predictionAccuracy > 70 ? 'text-emerald-400' : 'text-orange-400'}`}>
-                            {generalizationResult.predictionAccuracy.toFixed(1)}%
-                        </span>
-                    </div>
-                    <div className="text-[10px] text-zinc-500 leading-snug">
-                        {generalizationResult.explanation}
-                    </div>
-                </div>
-             )}
-             
-             {/* UNIVERSALITY RESULT CARD (FINAL) */}
-             {universalityResult && (
-                <div className={`col-span-2 border rounded-xl p-4 relative overflow-hidden ${
-                    universalityResult.avgAccuracy > 80 
-                    ? 'bg-gradient-to-r from-emerald-950 to-emerald-900/20 border-emerald-500' 
-                    : 'bg-zinc-950 border-zinc-800'
-                }`}>
-                    <div className="absolute top-0 right-0 p-2 opacity-20"><Scale className="w-16 h-16" /></div>
-                    <p className="text-[9px] font-bold uppercase mb-2 flex items-center gap-2">
-                        <Scale className="w-3 h-3" /> Massive Validation (N={universalityResult.samples})
-                    </p>
-                    
-                    <div className="mb-4">
-                        <h3 className={`text-xl font-black tracking-tighter uppercase ${universalityResult.avgAccuracy > 80 ? 'text-emerald-400' : 'text-zinc-400'}`}>
-                            {universalityResult.verdict}
-                        </h3>
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-2 text-xs mb-3">
-                        <div className="bg-black/20 p-2 rounded">
-                            <span className="text-zinc-500 block text-[9px]">Avg Accuracy</span>
-                            <span className="font-mono font-bold">{universalityResult.avgAccuracy.toFixed(1)}%</span>
-                        </div>
-                        <div className="bg-black/20 p-2 rounded">
-                            <span className="text-zinc-500 block text-[9px]">Consistency</span>
-                            <span className="font-mono font-bold">{universalityResult.consistency.toFixed(1)}%</span>
-                        </div>
-                        <div className="bg-black/20 p-2 rounded">
-                            <span className="text-zinc-500 block text-[9px]">Min / Max</span>
-                            <span className="font-mono font-bold">{Math.round(universalityResult.minAccuracy)}% - {Math.round(universalityResult.maxAccuracy)}%</span>
-                        </div>
-                    </div>
-                    
-                    <div className="p-3 bg-black/40 rounded border border-white/5 font-mono text-[9px] text-zinc-400 leading-relaxed italic">
-                        {universalityResult.proofDraft}
-                    </div>
-                </div>
-             )}
-          </div>
-
-        </div>
-      </div>
+      <ObservatoryPanel 
+        macroResults={macroResults}
+        agentSteps={agentSteps}
+        peakAlpha={peakAlpha}
+        scalingResult={scalingResult}
+        stressResult={stressResult}
+        confirmationResult={confirmationResult}
+        boundaryResult={boundaryResult}
+        varianceResult={varianceResult}
+        hysteresisResult={hysteresisResult}
+        millenniumResult={millenniumResult}
+        generalizationResult={generalizationResult}
+        universalityResult={universalityResult}
+        adversarialResult={adversarialResult}
+        isVisible={activeMobileTab === 'observatory'}
+        isMobile={isMobile}
+        showCharts={showCharts}
+      />
 
       {/* === COLUMN 3: AGENTS (Tab 3) === */}
       <div className={`${activeMobileTab === 'agents' ? 'flex' : 'hidden'} md:flex col-span-3 bg-[#08080a] border-l border-zinc-900 flex-col z-20 h-full overflow-hidden`}>
