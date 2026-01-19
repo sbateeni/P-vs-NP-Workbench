@@ -1,0 +1,5 @@
+{
+  "name": "P vs NP Workbench",
+  "description": "A theoretical computer science workbench to explore SAT phase transitions, simulate DPLL algorithms, and collaborate with AI on complexity proofs.",
+  "requestFramePermissions": []
+}
